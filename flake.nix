@@ -13,6 +13,9 @@
       url = "github:input-output-hk/iohk-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    cardano-db-sync = {
+      url = "github:input-output-hk/cardano-db-sync?ref=refs/tags/12.0.2";
+    };
     cardano-node = {
       url = "github:input-output-hk/cardano-node?ref=refs/tags/1.31.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -20,7 +23,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, utils, haskellNix, iohkNix, ... }:
+  outputs = { self, nixpkgs, utils, haskellNix, iohkNix, ... } @ inputs:
     let
       inherit (nixpkgs) lib;
       inherit (lib) head systems mapAttrs recursiveUpdate mkDefault
@@ -41,7 +44,7 @@
           gitrev = self.rev or "dirty";
           commonLib = lib // iohkNix.lib;
         })
-        (import ./nix/pkgs.nix)
+        (import ./nix/pkgs.nix { inherit inputs; })
       ];
 
     in eachSystem supportedSystems (system:
@@ -73,6 +76,11 @@
         defaultApp = flake.apps."voting-tools:exe:voting-tools";
 
         inherit (flake) apps;
+
+        checks =
+          optionalAttrs (system == "x86_64-linux") (
+            mapAttrs (_: v: v.${system} or v) pkgs.nixosTests
+          );
       }
     );
 }

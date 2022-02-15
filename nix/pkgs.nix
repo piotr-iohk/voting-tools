@@ -1,3 +1,5 @@
+{ inputs }:
+
 # our packages overlay
 pkgs: _: with pkgs;
   let
@@ -12,5 +14,9 @@ pkgs: _: with pkgs;
       buildPackages
       gitrev
       ;
+  };
+
+  nixosTests = import ./nixos/tests {
+    inherit inputs pkgs;
   };
 }
