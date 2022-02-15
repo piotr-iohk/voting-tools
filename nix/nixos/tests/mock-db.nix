@@ -83,9 +83,13 @@ in
     machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx_out FROM '${mock-data}/tx_out.csv' DELIMITER ',' HEADER CSV\"")
     machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx_metadata FROM '${mock-data}/tx_metadata.csv' DELIMITER ',' HEADER CSV\"")
 
-    machine.succeed("${votingToolsPkg}/bin/voting-tools --mainnet --db db_sync --db-user db-sync --out-file out.json --slot-no 41778925")
+    # Run voting-tools
+    machine.succeed("${votingToolsPkg}/bin/voting-tools --mainnet --db db_sync --db-user db-sync --out-file out.json --slot-no ${slotNo}")
+
     # Add a newline to the end of the JSON file if it doesn't already exist
     machine.succeed("sed -i -e '$a\\' out.json")
+
+    # Ensure generated file matches golden file
     machine.succeed("diff ${mock-data}/out.json out.json")
   '';
 }
