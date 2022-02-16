@@ -27,6 +27,7 @@ module Cardano.CLI.Voting.Signing ( VoteSigningKey
                                   , withWitnessPaymentKey
                                   , toStakeAddr
                                   , readVotePaymentKeyFile
+                                  , voteVerificationKeyToStakeAddress
                                   ) where
 
 import           Control.Monad.Except (MonadError)
@@ -55,6 +56,11 @@ import qualified Cardano.Crypto.DSIGN.Class as Crypto
 import qualified Cardano.Crypto.Hashing as Crypto
 import qualified Cardano.Crypto.Util as Crypto
 import qualified Cardano.Ledger.Keys as Shelley
+
+import qualified Cardano.Api as Api
+import qualified Cardano.Api.Shelley as Api
+import Data.Text (Text)
+import qualified Data.ByteString.Char8 as BC
 
 import           Cardano.Ledger.Crypto (Crypto (..), StandardCrypto)
 
@@ -253,3 +259,14 @@ instance SerialiseAsRawBytes VoteVerificationKey where
     case (AStakeExtendedVerificationKey <$> deserialiseFromRawBytes (AsVerificationKey AsStakeExtendedKey) bs) of
       Nothing -> (AStakeVerificationKey <$> deserialiseFromRawBytes (AsVerificationKey AsStakeKey) bs)
       x       -> x
+
+voteVerificationKeyToStakeAddress :: NetworkId -> Text -> Either String Text
+voteVerificationKeyToStakeAddress nw verKeyHex =
+  case Aeson.fromJSON (Aeson.String verKeyHex) of
+      Aeson.Error err -> Left err
+      Aeson.Success verKey ->
+          let
+              stakeAddress = Api.makeStakeAddress nw (Api.StakeCredentialByKey (getStakeHash verKey))
+              stakeAddressHex = T.pack $ BC.unpack $ Api.serialiseToRawBytesHex stakeAddress
+          in
+              Right stakeAddressHex

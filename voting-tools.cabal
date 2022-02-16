@@ -36,6 +36,8 @@ library
                      , Cardano.CLI.Voting.Error
                      , Cardano.CLI.Voting.Metadata
                      , Cardano.CLI.Voting.Signing
+                     , Cardano.Catalyst.Db
+                     , Cardano.Catalyst.Db.Gen
                      , Config.Snapshot
                      , Config.Registration
                      , Config.Common
@@ -53,13 +55,16 @@ library
                      , cardano-cli
                      , cardano-crypto-class
                      , cardano-crypto-wrapper
+                     , cardano-db
                      , cardano-ledger-core
                      , containers
+                     , hedgehog
                      , lens
                      , lens-aeson
                      , monoidal-containers
                      , mtl
                      , optparse-applicative
+                     , persistent
                      , safe-exceptions
                      , scientific
                      , text
