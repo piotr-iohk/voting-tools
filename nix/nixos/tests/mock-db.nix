@@ -71,10 +71,12 @@ in
   testScript = { nodes, ...}: ''
     start_all()
 
-    # Ensure database has correct schema by running migrations.
+    # Ensure database has correct schema by running cardano-db-sync migrations.
     machine.wait_for_unit("postgresql.service")
     machine.succeed("echo 'Running db_sync migrations...'")
     machine.succeed("for file in ${nodes.machine.config.services.cardano-db-sync.dbSyncPkgs.schema}/*; do psql -U db-sync -d db_sync -f $file; done")
+
+    # Copy over mock data
     machine.succeed("psql -U db-sync -d db_sync -c \"\\copy slot_leader FROM '${mock-data}/slot_leader.csv' DELIMITER ',' HEADER CSV\"")
     machine.succeed("psql -U db-sync -d db_sync -c \"\\copy block FROM '${mock-data}/block.csv' DELIMITER ',' HEADER CSV\"")
     machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx FROM '${mock-data}/tx.csv' DELIMITER ',' HEADER CSV\"")
