@@ -117,3 +117,35 @@ genStakeAddress = Db.StakeAddress
   <*> Gen.text (Range.linear 0 256) Gen.unicodeAll
   <*> Gen.maybe (Gen.bytes (Range.linear 0 512))
   <*> (Persist.toSqlKey <$> genInt64)
+
+genTxOut :: MonadGen m => m Db.TxOut
+genTxOut = Db.TxOut
+  <$> (Persist.toSqlKey <$> genInt64)
+  -- ^ tx id
+  <*> genWord16
+  -- ^ index
+  <*> Gen.text (Range.linear 0 103) Gen.ascii
+  -- ^ address
+  <*> genHash
+  -- ^ address raw
+  <*> Gen.bool
+  -- ^ has script
+  <*> Gen.maybe genHash
+  -- ^ Payment credential
+  <*> Gen.maybe (Persist.toSqlKey <$> genInt64)
+  -- ^ stake address id
+  <*> genLovelace
+  -- ^ Value
+  <*> Gen.maybe genHash
+  -- ^ Data hash
+
+genTxIn :: MonadGen m => m Db.TxIn
+genTxIn = Db.TxIn
+  <$> (Persist.toSqlKey <$> genInt64)
+  -- ^ Tx in id
+  <*> (Persist.toSqlKey <$> genInt64)
+  -- ^ Tx out id
+  <*> genWord16
+  -- ^ Tx out index
+  <*> pure Nothing
+  -- ^ Redeemer id
