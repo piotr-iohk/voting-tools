@@ -1,25 +1,9 @@
 { config, pkgs, system, lib, inputs, ... }:
 let
-  nixpkgs = pkgs.lib.cleanSource pkgs.path;
-
-  sources = import ../../sources.nix;
-
-  cardanoNodePort = 3001;
-
-  mock-data =
-    pkgs.runCommandLocal "mock-data" {}
-      ''
-        mkdir -p $out
-
-        cp -r ${./mock-db}/* $out/
-      '';
-
-  slotNo = 41778925;
-
-  votingToolsPkg = inputs.self.packages."${system}".voting-tools;
+  integrationTest = inputs.self.packages.x86_64-linux."voting-tools:test:integration-tests";
 in
 {
-  name = "vote-submission-test";
+  name = "property-tests-db";
 
   nodes = {
     machine = {
@@ -76,22 +60,7 @@ in
     machine.succeed("echo 'Running db_sync migrations...'")
     machine.succeed("for file in ${nodes.machine.config.services.cardano-db-sync.dbSyncPkgs.schema}/*; do psql -U db-sync -d db_sync -f $file; done")
 
-    # Copy over mock data
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy slot_leader FROM '${mock-data}/slot_leader.csv' DELIMITER ',' HEADER CSV\"")
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy block FROM '${mock-data}/block.csv' DELIMITER ',' HEADER CSV\"")
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx FROM '${mock-data}/tx.csv' DELIMITER ',' HEADER CSV\"")
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy stake_address FROM '${mock-data}/stake_address.csv' DELIMITER ',' HEADER CSV\"")
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx_in FROM '${mock-data}/tx_in.csv' DELIMITER ',' HEADER CSV\"")
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx_out FROM '${mock-data}/tx_out.csv' DELIMITER ',' HEADER CSV\"")
-    machine.succeed("psql -U db-sync -d db_sync -c \"\\copy tx_metadata FROM '${mock-data}/tx_metadata.csv' DELIMITER ',' HEADER CSV\"")
-
-    # Run voting-tools
-    machine.succeed("${votingToolsPkg}/bin/voting-tools --mainnet --db db_sync --db-user db-sync --out-file out.json --slot-no ${toString slotNo}")
-
-    # Add a newline to the end of the JSON file if it doesn't already exist
-    machine.succeed("sed -i -e '$a\\' out.json")
-
-    # Ensure generated file matches golden file
-    machine.succeed("diff ${mock-data}/out.json out.json")
+    # Run voting-tools tests
+    machine.succeed("${integrationTest}/bin/integration-tests --db-name db_sync --db-user db-sync --db-host /run/postgresql")
   '';
 }

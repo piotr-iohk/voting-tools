@@ -6,6 +6,8 @@ module Config.Common where
 import           Cardano.Api (AnyCardanoEra (..), CardanoEra (..), SlotNo (..))
 import           Data.Foldable (asum)
 import           Options.Applicative (Parser, auto, flag', help, long, metavar, option)
+import qualified Data.ByteString.Char8 as BSC
+import           Database.Persist.Postgresql (ConnectionString)
 
 data DatabaseConfig
   = DatabaseConfig { _dbName       :: String
@@ -13,6 +15,9 @@ data DatabaseConfig
                    , _dbHost       :: String
                    }
   deriving (Eq, Show)
+
+pgConnectionString :: DatabaseConfig -> ConnectionString
+pgConnectionString (DatabaseConfig dbName dbUser dbHost) = BSC.pack $ "host=" <> dbHost <> " dbname=" <> dbName <> " user=" <> dbUser
 
 pSlotNo :: Parser SlotNo
 pSlotNo = SlotNo

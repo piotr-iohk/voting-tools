@@ -153,6 +153,15 @@ let
         packages.terminal-size.components.library.build-tools = lib.mkForce [];
         packages.network.components.library.build-tools = lib.mkForce [];
       })
+      {
+        packages.voting-tools.components.tests.integration-tests = {
+          build-tools = [ buildPackages.postgresql ];
+          # Must be run in an environment with
+          doCheck = false;
+          # inherit preCheck;
+          # inherit postCheck;
+        };
+      }
     ];
   });
   # setGitRev is a postInstall script to stamp executables with

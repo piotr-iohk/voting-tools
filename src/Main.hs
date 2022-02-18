@@ -1,4 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+import           Database.Esqueleto.Legacy (BackendCompatible, Single (Single), fromSqlKey)
+import           Database.Persist.Postgresql (IsolationLevel (Serializable), SqlBackend,
+                   SqlPersistT, rawExecute, rawSql, runSqlConnWithIsolation)
 
 module Main where
 
@@ -47,7 +50,3 @@ runQuery dbConfig q = runNoLoggingT $ do
     case result of
       Left (err :: MetadataRetrievalError) -> fail $ show err
       Right x                              -> pure x
-
-
-pgConnectionString :: DatabaseConfig -> ConnectionString
-pgConnectionString (DatabaseConfig dbName dbUser dbHost) = BSC.pack $ "host=" <> dbHost <> " dbname=" <> dbName <> " user=" <> dbUser

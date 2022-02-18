@@ -17,4 +17,5 @@ with pkgs.commonLib;
   callTest = fn: args: forAllSystems (system: importTest fn args system);
 in rec {
   mock-db = callTest ./mock-db.nix {};
+  db-tests = callTest ./db-tests.nix {};
 }

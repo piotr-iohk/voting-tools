@@ -17,12 +17,12 @@ common project-config
   default-language:     Haskell2010
   default-extensions:   OverloadedStrings
 
-  ghc-options:          -Wall
-                        -Wcompat
-                        -Wincomplete-record-updates
-                        -Wincomplete-uni-patterns
-                        -Wpartial-fields
-                        -Wredundant-constraints
+  -- ghc-options:          -Wall
+  --                       -Wcompat
+  --                       -Wincomplete-record-updates
+  --                       -Wincomplete-uni-patterns
+  --                       -Wpartial-fields
+  --                       -Wredundant-constraints
 
 library
   import:              project-config
@@ -51,6 +51,7 @@ library
                      , binary
                      , bytestring
                      , cardano-api
+                     , cardano-api:gen
                      , cardano-binary
                      , cardano-cli
                      , cardano-crypto-class
@@ -155,3 +156,28 @@ test-suite unit-tests
                         Test.Cardano.CLI.Fetching
                         Test.Cardano.CLI.Voting.Signing
                         Test.Snapshot
+
+test-suite integration-tests
+  import:               project-config
+  hs-source-dirs:       test/integration
+  main-is:              Main.hs
+  type:                 exitcode-stdio-1.0
+
+  build-depends:  base >=4.12 && <5
+                , hedgehog
+                -- , hedgehog-gen-json
+                , base16-bytestring
+                , lifted-base
+                , monad-control
+                , monad-logger
+                , mtl
+                , persistent
+                , persistent-postgresql
+                , resource-pool
+                , tasty
+                , tasty-hedgehog
+                , text
+                , transformers-base
+                , voting-tools
+
+  other-modules:        Test.Cardano.Catalyst.Db

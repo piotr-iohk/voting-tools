@@ -1,29 +1,40 @@
+{-# LANGUAGE GADTs #-}
 
 module Cardano.Catalyst.Db.Gen where
 
-import Hedgehog (MonadGen)
+import Hedgehog (MonadGen, fromGenT, toGenT, GenBase, Gen)
 import Data.ByteString (ByteString)
 import Data.Word (Word64, Word16)
 import Data.Int (Int64)
 import Data.Time.Clock (UTCTime)
+import Data.Functor.Identity (Identity)
 
 import qualified Cardano.Db as Db
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 import qualified Database.Persist.Sql as Persist
 import qualified Data.Time.Clock.POSIX as Time
+import qualified Gen.Cardano.Api.Metadata as Cardano
+import qualified Cardano.Api as Cardano
+import qualified Data.Aeson as Aeson
+import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Lazy as BSL
 
 import Cardano.Catalyst.Db
 
 genUTCTime :: MonadGen m => m UTCTime
 genUTCTime = (Time.posixSecondsToUTCTime . fromIntegral) <$> genWord64
 
-genHash :: MonadGen m => m ByteString
-genHash = Gen.bytes (Range.singleton 56)
+genHash32 :: MonadGen m => m ByteString
+genHash32 = Gen.bytes (Range.singleton 32)
+
+genHash28 :: MonadGen m => m ByteString
+genHash28 = Gen.bytes (Range.singleton 28)
 
 genSlotLeader :: MonadGen m => m Db.SlotLeader
 genSlotLeader = Db.SlotLeader
-  <$> genHash
+  <$> genHash28
+  -- ^ Addresses use a 28 byte hash (as do StakeholdIds).
   <*> pure Nothing
   <*> Gen.text (Range.linear 0 64) Gen.unicodeAll
 
@@ -38,7 +49,7 @@ genInt64 = Gen.int64 Range.linearBounded
 
 genBlock :: MonadGen m => m Db.Block
 genBlock = Db.Block
-  <$> genHash
+  <$> genHash32
   -- ^ Hash
   <*> Gen.maybe genWord64
   -- ^ epoch number
@@ -64,7 +75,7 @@ genBlock = Db.Block
   -- ^ Protocol major ver
   <*> Gen.maybe (Gen.text (Range.singleton 65) Gen.ascii)
   -- ^ vrf key
-  <*> Gen.maybe genHash
+  <*> Gen.maybe genHash32
   -- ^ op cert
   <*> Gen.maybe genWord64
   -- ^ op cert counter
@@ -74,7 +85,7 @@ genLovelace = Db.DbLovelace <$> genWord64
 
 genTx :: MonadGen m => m Db.Tx
 genTx = Db.Tx
-  <$> genHash
+  <$> genHash32
   <*> (Persist.toSqlKey <$> genInt64)
   -- ^ Block id
   <*> genWord64
@@ -96,24 +107,40 @@ genTx = Db.Tx
   <*> genWord64
   -- ^ script size
 
-genTxMetadata :: MonadGen m => m Db.TxMetadata
-genTxMetadata = Db.TxMetadata
-  <$> (Db.DbWord64 <$> genWord64)
-  <*> Gen.maybe (Gen.text (Range.linear 0 256) Gen.unicodeAll)
-  <*> Gen.bytes (Range.linear 0 512)
-  <*> (Persist.toSqlKey <$> genInt64)
+genTxMetadata :: (MonadGen m, GenBase m ~ Identity) => m Db.TxMetadata
+genTxMetadata = do
+  mMetadata <- Gen.maybe $ fromGenT Cardano.genTxMetadata
+
+  let
+    (jsonText, jsonBytes) = case mMetadata of
+        Nothing ->
+          (Nothing, "")
+        Just meta ->
+          let
+            jsonValue =
+              Cardano.metadataToJson Cardano.TxMetadataJsonDetailedSchema meta
+            jsonBytes = BSL.toStrict $ Aeson.encode jsonValue
+            jsonText = T.decodeUtf8 jsonBytes
+          in
+            (Just jsonText, jsonBytes)
+
+  Db.TxMetadata
+    <$> (Db.DbWord64 <$> genWord64)
+    <*> pure jsonText
+    <*> pure jsonBytes
+    <*> (Persist.toSqlKey <$> genInt64)
 
 genTransaction :: MonadGen m => m Transaction
 genTransaction =
   Transaction <$> genTx <*> genBlock <*> genSlotLeader
 
-genMetadataEntry :: MonadGen m => m MetadataEntry
+genMetadataEntry :: (MonadGen m, GenBase m ~ Identity) => m MetadataEntry
 genMetadataEntry =
   MetadataEntry <$> genTxMetadata <*> genTransaction
 
 genStakeAddress :: MonadGen m => m Db.StakeAddress
 genStakeAddress = Db.StakeAddress
-  <$> genHash
+  <$> genHash32
   <*> Gen.text (Range.linear 0 256) Gen.unicodeAll
   <*> Gen.maybe (Gen.bytes (Range.linear 0 512))
   <*> (Persist.toSqlKey <$> genInt64)
@@ -126,17 +153,17 @@ genTxOut = Db.TxOut
   -- ^ index
   <*> Gen.text (Range.linear 0 103) Gen.ascii
   -- ^ address
-  <*> genHash
+  <*> genHash32
   -- ^ address raw
   <*> Gen.bool
   -- ^ has script
-  <*> Gen.maybe genHash
+  <*> Gen.maybe genHash32
   -- ^ Payment credential
   <*> Gen.maybe (Persist.toSqlKey <$> genInt64)
   -- ^ stake address id
   <*> genLovelace
   -- ^ Value
-  <*> Gen.maybe genHash
+  <*> Gen.maybe genHash32
   -- ^ Data hash
 
 genTxIn :: MonadGen m => m Db.TxIn
