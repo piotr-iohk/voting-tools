@@ -4,7 +4,7 @@ module Cardano.Catalyst.Db.Gen where
 
 import Hedgehog (MonadGen, fromGenT, toGenT, GenBase, Gen)
 import Data.ByteString (ByteString)
-import Data.Word (Word64, Word16)
+import Data.Word (Word64, Word32, Word16)
 import Data.Int (Int64)
 import Data.Time.Clock (UTCTime)
 import Data.Functor.Identity (Identity)
@@ -23,7 +23,9 @@ import qualified Data.ByteString.Lazy as BSL
 import Cardano.Catalyst.Db
 
 genUTCTime :: MonadGen m => m UTCTime
-genUTCTime = (Time.posixSecondsToUTCTime . fromIntegral) <$> genWord64
+genUTCTime =
+  (Time.posixSecondsToUTCTime . fromIntegral)
+  <$> (Gen.word32 Range.linearBounded)
 
 genHash32 :: MonadGen m => m ByteString
 genHash32 = Gen.bytes (Range.singleton 32)
@@ -41,6 +43,15 @@ genSlotLeader = Db.SlotLeader
 genWord64 :: MonadGen m => m Word64
 genWord64 = Gen.word64 Range.linearBounded
 
+genWord32 :: MonadGen m => m Word32
+genWord32 = Gen.word32 Range.linearBounded
+
+genUInteger :: (MonadGen m, Num int) => m int
+genUInteger = fromIntegral <$> genWord16
+
+genWord63 :: MonadGen m => m Word64
+genWord63 = Gen.word64 (Range.linear 0 (2 ^ 63))
+
 genWord16 :: MonadGen m => m Word16
 genWord16 = Gen.word16 Range.linearBounded
 
@@ -51,19 +62,19 @@ genBlock :: MonadGen m => m Db.Block
 genBlock = Db.Block
   <$> genHash32
   -- ^ Hash
-  <*> Gen.maybe genWord64
+  <*> Gen.maybe genUInteger
   -- ^ epoch number
-  <*> Gen.maybe genWord64
+  <*> Gen.maybe genUInteger
   -- ^ slot number
-  <*> Gen.maybe genWord64
+  <*> Gen.maybe genUInteger
   -- ^ epoch slot no
-  <*> Gen.maybe genWord64
+  <*> Gen.maybe genUInteger
   -- ^ block no
   <*> pure Nothing
   -- ^ previous block id
   <*> (Persist.toSqlKey <$> genInt64)
   -- ^ slot leader id
-  <*> genWord64
+  <*> genUInteger
   -- ^ block size
   <*> genUTCTime
   --- ^ block time
@@ -77,7 +88,7 @@ genBlock = Db.Block
   -- ^ vrf key
   <*> Gen.maybe genHash32
   -- ^ op cert
-  <*> Gen.maybe genWord64
+  <*> Gen.maybe genWord63
   -- ^ op cert counter
 
 genLovelace :: MonadGen m => m Db.DbLovelace
@@ -88,7 +99,7 @@ genTx = Db.Tx
   <$> genHash32
   <*> (Persist.toSqlKey <$> genInt64)
   -- ^ Block id
-  <*> genWord64
+  <*> genUInteger
   -- ^ Block index
   <*> genLovelace
   -- ^ out_sum
@@ -96,7 +107,7 @@ genTx = Db.Tx
   -- ^ fee
   <*> genInt64
   -- ^ deposit
-  <*> genWord64
+  <*> genUInteger
   -- ^ size
   <*> Gen.maybe (Db.DbWord64 <$> genWord64)
   -- ^ invalid before (slot)
@@ -104,7 +115,7 @@ genTx = Db.Tx
   -- ^ invalid after (slot)
   <*> Gen.bool
   -- ^ script validity
-  <*> genWord64
+  <*> genUInteger
   -- ^ script size
 
 genTxMetadata :: (MonadGen m, GenBase m ~ Identity) => m Db.TxMetadata
