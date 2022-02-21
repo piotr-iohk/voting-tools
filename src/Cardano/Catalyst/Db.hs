@@ -11,6 +11,16 @@ import           Database.Persist.Postgresql (Key)
 import qualified Database.Persist.Class as Sql
 import qualified Cardano.Db as Db
 
+import qualified Data.Aeson as Aeson
+import Data.Text (Text)
+import Data.ByteString (ByteString)
+import qualified Cardano.Api as Cardano
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.Text.Encoding as T
+import Data.Text.Encoding as T
+import           Cardano.CLI.Voting.Metadata (Vote, voteToTxMetadata, signatureMetaKey, metadataMetaKey)
+import qualified Data.Map.Strict as M
+
 -- | A transaction consists of a Tx and the Block it was accepted into the
 -- chain, also the SlotLeader for that Block.
 data Transaction = Transaction
@@ -84,6 +94,49 @@ writeTxMetadata (MetadataEntry metadata transaction) = do
     let metadata' = metadata { Db.txMetadataTxId = txId }
     metadataId <- Sql.insert metadata'
     pure (metadataId, MetadataEntry metadata' transaction')
+
+x :: Maybe Cardano.TxMetadataValue -> (Maybe Text, ByteString)
+x Nothing     = (Nothing, "")
+x (Just meta) =
+  let
+    jsonValue =
+      Cardano.metadataValueToJsonNoSchema meta
+    jsonBytes = BSL.toStrict $ Aeson.encode jsonValue
+    jsonText = T.decodeUtf8 jsonBytes
+  in
+    (Just jsonText, jsonBytes)
+
+register'
+  :: ( MonadIO m
+     , MonadReader backend m
+     , Sql.PersistRecordBackend Db.TxMetadata backend
+     , Sql.PersistStoreWrite backend
+     )
+  => Key Db.Tx
+  -> Vote
+  -> m ( (Key Db.TxMetadata, Db.TxMetadata)
+       , (Key Db.TxMetadata, Db.TxMetadata)
+       )
+register' txId vote = do
+  let
+    (Cardano.TxMetadata metaMap) = voteToTxMetadata vote
+    mSig = M.lookup signatureMetaKey metaMap
+    mPayload = M.lookup metadataMetaKey metaMap
+
+    (sigJSON, sigBytes) = x mSig
+    (payloadJSON, payloadBytes) = x mPayload
+
+    payloadMeta = Db.TxMetadata (Db.DbWord64 metadataMetaKey) payloadJSON payloadBytes txId
+    sigMeta = Db.TxMetadata (Db.DbWord64 signatureMetaKey) sigJSON sigBytes txId
+
+  r <- ask
+  (flip runReaderT) r $ do
+    payloadId <- Sql.insert payloadMeta
+    sigId <- Sql.insert sigMeta
+
+    pure ( (payloadId, payloadMeta)
+         , (sigId, sigMeta)
+         )
 
 register
   :: ( MonadIO m

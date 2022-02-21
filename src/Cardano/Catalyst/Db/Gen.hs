@@ -187,3 +187,17 @@ genTxIn = Db.TxIn
   -- ^ Tx out index
   <*> pure Nothing
   -- ^ Redeemer id
+
+-- tx <- Gen.transaction
+-- vote <- Gen.vote
+-- let txMetadataAll = voteToTxMetadata vote
+-- voteToTxMetadata vote
+
+-- generate vote signing key
+-- any slot
+-- any rewards address
+-- any votepub
+--
+-- gen tx and submit
+-- Create vote payload tx metadata
+--

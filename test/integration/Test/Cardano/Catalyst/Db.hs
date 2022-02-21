@@ -12,6 +12,7 @@ import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Pool (Pool)
 import Test.Tasty.Hedgehog (fromGroup, testProperty)
 import Hedgehog (Property, forAll, forAllWith, property, (===))
+import Hedgehog.Internal.Property (forAllWithT)
 import           Database.Persist.Postgresql (IsolationLevel (Serializable), SqlBackend,
                    SqlPersistT, rawExecute, rawExecute, runSqlPool, runSqlConnWithIsolation, runSqlPoolNoTransaction, Single)
 import           Control.Exception.Lifted (bracket_)
@@ -25,6 +26,12 @@ import qualified Hedgehog.Gen as Gen
 import qualified Data.Pool as Pool
 import qualified Cardano.Catalyst.Db.Gen as Gen
 import qualified Database.Persist.Class as Sql
+import qualified Test.Generators as Gen
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Db as Db
+
+import Cardano.CLI.Query (queryVotingFunds)
+import Cardano.CLI.Fetching (RegistrationInfo(..))
 
 withCleanDb :: IO SqlBackend -> TestTree -> TestTree
 withCleanDb getBackend testTree =
@@ -86,7 +93,14 @@ prop_insert :: IO (Pool SqlBackend) -> Property
 prop_insert getConnPool =
   property $ do
     pool <- liftIO getConnPool
-    metadata <- forAllWith (const "x") genMetadataEntry
+
+    tx <- forAllWith (const "tx") genTransaction
+    vote <- forAllWithT (const "vote") Gen.vote
+
     isolated pool $ do
-      liftIO $ runQueryNoTransaction pool $ writeTxMetadata metadata
-      pure ()
+      (txId, _) <- liftIO $ runQueryNoTransaction pool $ writeTransaction tx
+      _ <- liftIO $ runQueryNoTransaction pool $ register' txId vote
+      funds <- liftIO $ runQueryNoTransaction pool $ queryVotingFunds Cardano.Mainnet Nothing
+      funds === [RegistrationInfo vote (fromIntegral $ Db.unDbLovelace $ Db.txOutSum $ transactionTx tx)]
+
+-- Unsigned registrations are never considered valid

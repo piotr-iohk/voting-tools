@@ -290,7 +290,7 @@ voteToTxMetadata (Vote payload sig) =
   let
     payloadMeta = votePayloadToTxMetadata payload
     sigMeta = makeTransactionMetadata $ M.fromList [
-        (61285, TxMetaMap [(TxMetaNumber 1, TxMetaBytes $ Crypto.rawSerialiseSigDSIGN sig)])
+        (signatureMetaKey, TxMetaMap [(TxMetaNumber 1, TxMetaBytes $ Crypto.rawSerialiseSigDSIGN sig)])
       ]
   in
     payloadMeta <> sigMeta

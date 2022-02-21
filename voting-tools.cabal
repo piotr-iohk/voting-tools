@@ -160,6 +160,8 @@ test-suite unit-tests
 test-suite integration-tests
   import:               project-config
   hs-source-dirs:       test/integration
+                        test
+                        src
   main-is:              Main.hs
   type:                 exitcode-stdio-1.0
 
@@ -180,4 +182,47 @@ test-suite integration-tests
                 , transformers-base
                 , voting-tools
 
+                , aeson
+                , aeson-pretty
+                , attoparsec
+                , bech32
+                , binary
+                , bytestring
+                , cardano-api
+                , cardano-api:gen
+                , cardano-binary
+                , cardano-cli
+                , cardano-crypto-class
+                , cardano-crypto-wrapper
+                , cardano-db
+                , cardano-ledger-byron
+                , cardano-ledger-core
+                , containers
+                , esqueleto
+                , lens
+                , lens-aeson
+                , monad-logger
+                , mtl
+                , optparse-applicative
+                , ouroboros-network
+                , persistent-postgresql
+                , safe-exceptions
+                , scientific
+                , text
+                , time
+                , unordered-containers
+                , vector
+
   other-modules:        Test.Cardano.Catalyst.Db
+                        Test.Generators
+                        Cardano.CLI.Query
+                        Cardano.API.Extended
+                        Cardano.API.Extended.Raw
+                        Cardano.API.Jormungandr
+                        Cardano.CLI.Fetching
+                        Cardano.CLI.Voting
+                        Cardano.CLI.Voting.Metadata
+                        Cardano.CLI.Voting.Signing
+                        Cardano.Catalyst.Db
+                        Cardano.Catalyst.Db.Gen
+                        Config.Common
