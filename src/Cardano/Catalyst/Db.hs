@@ -179,7 +179,8 @@ contribute (Contribution txOut stakeAddress txIn transaction fromTransaction) = 
   r <- ask
 
   (flip runReaderT) r $ do
-    stakeAddressId <- Sql.insert stakeAddress
+    stakeAddressId <- Sql.insert
+      $ stakeAddress { Db.stakeAddressRegisteredTxId = txId }
     let txOut' = txOut { Db.txOutTxId = txId
                        , Db.txOutStakeAddressId = Just stakeAddressId
                        }

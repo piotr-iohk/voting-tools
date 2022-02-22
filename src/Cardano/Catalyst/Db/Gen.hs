@@ -8,6 +8,7 @@ import Data.Word (Word64, Word32, Word16)
 import Data.Int (Int64)
 import Data.Time.Clock (UTCTime)
 import Data.Functor.Identity (Identity)
+import Cardano.CLI.Voting.Signing (voteVerificationKeyStakeAddressHashRaw, VoteVerificationKey, serialiseVoteVerificationKeyToBech32, voteVerificationKeyHashRaw)
 
 import qualified Cardano.Db as Db
 import qualified Hedgehog.Gen as Gen
@@ -153,7 +154,7 @@ genStakeAddress :: MonadGen m => m Db.StakeAddress
 genStakeAddress = Db.StakeAddress
   <$> genHash32
   <*> Gen.text (Range.linear 0 256) Gen.unicodeAll
-  <*> Gen.maybe (Gen.bytes (Range.linear 0 512))
+  <*> pure Nothing
   <*> (Persist.toSqlKey <$> genInt64)
 
 genTxOut :: MonadGen m => m Db.TxOut
@@ -168,7 +169,7 @@ genTxOut = Db.TxOut
   -- ^ address raw
   <*> Gen.bool
   -- ^ has script
-  <*> Gen.maybe genHash32
+  <*> Gen.maybe genHash28
   -- ^ Payment credential
   <*> Gen.maybe (Persist.toSqlKey <$> genInt64)
   -- ^ stake address id
@@ -187,6 +188,29 @@ genTxIn = Db.TxIn
   -- ^ Tx out index
   <*> pure Nothing
   -- ^ Redeemer id
+
+genContribution :: MonadGen m => m Contribution
+genContribution = Contribution
+  <$> genTxOut
+  <*> genStakeAddress
+  <*> genTxIn
+  <*> genTransaction
+  <*> genTransaction
+
+genContributionForStakeAddress
+  :: MonadGen m
+  => VoteVerificationKey
+  -> m Contribution
+genContributionForStakeAddress verKey = do
+  contribution <- genContribution
+  let verKeyHashRaw = voteVerificationKeyStakeAddressHashRaw Cardano.Mainnet verKey
+      verKeyView = serialiseVoteVerificationKeyToBech32 verKey
+
+      stakeAddress = contributionTxOutStaking contribution
+      stakeAddress' = stakeAddress { Db.stakeAddressHashRaw = verKeyHashRaw
+                                   , Db.stakeAddressView = verKeyView
+                                   }
+  pure $ contribution { contributionTxOutStaking = stakeAddress' }
 
 -- tx <- Gen.transaction
 -- vote <- Gen.vote

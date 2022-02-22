@@ -12,11 +12,12 @@ import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Pool (Pool)
 import Test.Tasty.Hedgehog (fromGroup, testProperty)
 import Hedgehog (Property, forAll, forAllWith, property, (===))
-import Hedgehog.Internal.Property (forAllWithT)
+import Hedgehog.Internal.Property (forAllWithT, forAllT)
 import           Database.Persist.Postgresql (IsolationLevel (Serializable), SqlBackend,
                    SqlPersistT, rawExecute, rawExecute, runSqlPool, runSqlConnWithIsolation, runSqlPoolNoTransaction, Single)
 import           Control.Exception.Lifted (bracket_)
 import Control.Monad.Base (liftBase)
+import Cardano.CLI.Voting.Metadata (voteRegistrationVerificationKey)
 
 import Cardano.Catalyst.Db
 import Cardano.Catalyst.Db.Gen
@@ -95,12 +96,16 @@ prop_insert getConnPool =
     pool <- liftIO getConnPool
 
     tx <- forAllWith (const "tx") genTransaction
-    vote <- forAllWithT (const "vote") Gen.vote
+    vote <- forAllT Gen.vote
+    contribution <- forAllWith (const "contribution") (genContributionForStakeAddress $ voteRegistrationVerificationKey vote)
+    let contributionAmt = Db.txOutValue $ contributionTxOut contribution
 
     isolated pool $ do
       (txId, _) <- liftIO $ runQueryNoTransaction pool $ writeTransaction tx
       _ <- liftIO $ runQueryNoTransaction pool $ register' txId vote
+      _ <- liftIO $ runQueryNoTransaction pool $ contribute contribution
+
       funds <- liftIO $ runQueryNoTransaction pool $ queryVotingFunds Cardano.Mainnet Nothing
-      funds === [RegistrationInfo vote (fromIntegral $ Db.unDbLovelace $ Db.txOutSum $ transactionTx tx)]
+      funds === [RegistrationInfo vote (fromIntegral $ Db.unDbLovelace contributionAmt)]
 
 -- Unsigned registrations are never considered valid

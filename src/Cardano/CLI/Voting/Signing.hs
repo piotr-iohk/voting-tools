@@ -14,6 +14,9 @@ module Cardano.CLI.Voting.Signing ( VoteSigningKey
                                   , getVoteVerificationKeyHash
                                   , getVoteVerificationKey
                                   , withVoteVerificationKey
+                                  , serialiseVoteVerificationKeyToBech32
+                                  , voteVerificationKeyHashRaw
+                                  , voteVerificationKeyStakeAddressHashRaw
                                   , hashVotePayload
                                   , withVoteSigningKey
                                   , withVoteShelleySigningKey
@@ -39,7 +42,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-import           Cardano.API.Extended (AsFileError, AsInputDecodeError, readSigningKeyFileAnyOf)
+import           Cardano.API.Extended (SerialiseAsBech32'(..), AsFileError, AsInputDecodeError, readSigningKeyFileAnyOf)
 import           Cardano.Api
                    (AsType (AsHash, AsPaymentExtendedKey, AsPaymentKey, AsSigningKey, AsStakeExtendedKey, AsStakeKey, AsVerificationKey),
                    FromSomeType (..), HasTypeProxy, Hash, Key, NetworkId, PaymentExtendedKey,
@@ -73,6 +76,23 @@ data VoteVerificationKey
   = AStakeVerificationKey (VerificationKey StakeKey)
   | AStakeExtendedVerificationKey (VerificationKey StakeExtendedKey)
   deriving (Eq, Show)
+
+serialiseVoteVerificationKeyToBech32 :: VoteVerificationKey -> Text
+serialiseVoteVerificationKeyToBech32 (AStakeVerificationKey verKey)
+  = Api.serialiseToBech32 verKey
+serialiseVoteVerificationKeyToBech32 (AStakeExtendedVerificationKey verKey)
+  = Api.serialiseToBech32 verKey
+
+voteVerificationKeyHashRaw :: VoteVerificationKey -> ByteString
+voteVerificationKeyHashRaw (AStakeVerificationKey vKey)
+  = Api.serialiseToRawBytesHex $ Api.verificationKeyHash vKey
+voteVerificationKeyHashRaw (AStakeExtendedVerificationKey vKey)
+  = Api.serialiseToRawBytesHex $ Api.verificationKeyHash vKey
+
+voteVerificationKeyStakeAddressHashRaw :: NetworkId -> VoteVerificationKey -> ByteString
+voteVerificationKeyStakeAddressHashRaw nw vKey =
+  Api.serialiseToRawBytes
+  $ Api.makeStakeAddress nw (Api.StakeCredentialByKey (getStakeHash vKey))
 
 instance ToJSON VoteVerificationKey where
   toJSON = Aeson.String . ("0x" <>) . T.decodeUtf8 . serialiseToRawBytesHex
