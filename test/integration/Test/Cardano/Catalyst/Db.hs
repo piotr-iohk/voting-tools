@@ -18,6 +18,8 @@ import           Database.Persist.Postgresql (IsolationLevel (Serializable), Sql
 import           Control.Exception.Lifted (bracket_)
 import Control.Monad.Base (liftBase)
 import Cardano.CLI.Voting.Metadata (voteRegistrationVerificationKey)
+import Data.Set (Set)
+import Data.ByteString (ByteString)
 
 import Cardano.Catalyst.Db
 import Cardano.Catalyst.Db.Gen
@@ -30,6 +32,8 @@ import qualified Database.Persist.Class as Sql
 import qualified Test.Generators as Gen
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Db as Db
+import qualified Control.Monad.State.Strict as State
+import qualified Data.Functor.Identity as Identity
 
 import Cardano.CLI.Query (queryVotingFunds)
 import Cardano.CLI.Fetching (RegistrationInfo(..))
@@ -95,9 +99,13 @@ prop_insert getConnPool =
   property $ do
     pool <- liftIO getConnPool
 
-    tx <- forAllWith (const "tx") genTransaction
+    -- (hash, hashState) <- forAllT $ runUniquely mempty $ uniquely genHash32
+    -- (h, ()) <- forAllT $ State.runStateT genUniqueHash32 ()
+    -- (stake, ()) <- forAllWithT (const "x") $ State.runStateT genStakeAddress ()
+    -- (meta, ()) <- forAllWith (const "x") $ State.runStateT genMetadataEntry ()
+    (tx, s) <- forAllWithT (const "tx") (State.runStateT genTransaction [1..])
     vote <- forAllT Gen.vote
-    contribution <- forAllWith (const "contribution") (genContributionForStakeAddress $ voteRegistrationVerificationKey vote)
+    (contribution, s') <- forAllWith (const "contribution") $ (flip State.runStateT s $ genContributionForStakeAddress $ voteRegistrationVerificationKey vote)
     let contributionAmt = Db.txOutValue $ contributionTxOut contribution
 
     isolated pool $ do

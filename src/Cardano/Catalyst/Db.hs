@@ -6,9 +6,10 @@ module Cardano.Catalyst.Db where
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.Reader (MonadReader, runReaderT, ask)
-import           Database.Persist.Postgresql (Key)
+import           Database.Persist.Postgresql (Key(..), PersistValue(..))
 
 import qualified Database.Persist.Class as Sql
+import qualified Database.Persist.Sql as Sql
 import qualified Cardano.Db as Db
 
 import qualified Data.Aeson as Aeson
@@ -20,6 +21,8 @@ import qualified Data.Text.Encoding as T
 import Data.Text.Encoding as T
 import           Cardano.CLI.Voting.Metadata (Vote, voteToTxMetadata, signatureMetaKey, metadataMetaKey)
 import qualified Data.Map.Strict as M
+
+import qualified Control.Monad.State.Strict as State
 
 -- | A transaction consists of a Tx and the Block it was accepted into the
 -- chain, also the SlotLeader for that Block.
@@ -168,11 +171,11 @@ contribute
      , Sql.PersistRecordBackend Db.TxIn backend
      , Sql.PersistStoreWrite backend
      )
-  => Contribution -> m ( Key Db.TxIn
-                       , Key Db.TxOut
+  => Contribution -> m ( Key Db.TxOut
                        , Contribution
                        )
 contribute (Contribution txOut stakeAddress txIn transaction fromTransaction) = do
+-- contribute (Contribution txOut stakeAddress transaction fromTransaction) = do
   (txId, transaction') <- writeTransaction transaction
   (fromTxId, fromTransaction') <- writeTransaction fromTransaction
 
@@ -185,12 +188,19 @@ contribute (Contribution txOut stakeAddress txIn transaction fromTransaction) = 
                        , Db.txOutStakeAddressId = Just stakeAddressId
                        }
     txOutId <- Sql.insert txOut'
-    let txIn' = txIn { Db.txInTxInId = fromTxId
-                     , Db.txInTxOutId = txId
-                     , Db.txInTxOutIndex = Db.txOutIndex txOut'
-                     }
-    txInId <- Sql.insert txIn'
-    pure $ ( txInId
-           , txOutId
-           , Contribution txOut' stakeAddress txIn' transaction' fromTransaction'
+    -- let txIn' = txIn { Db.txInTxInId = fromTxId
+    --                  , Db.txInTxOutId = txId
+    --                  , Db.txInTxOutIndex = Db.txOutIndex txOut'
+    --                  }
+    -- txInId <- Sql.insert txIn'
+    pure $ ( txOutId
+           , Contribution txOut' stakeAddress txIn transaction' fromTransaction'
            )
+
+s :: State.MonadState [Int] m => m Int
+s = do
+  x <- State.get
+  State.put $ tail x
+  pure $ head x
+
+runS = State.evalState s

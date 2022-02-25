@@ -1,7 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-import           Database.Esqueleto.Legacy (BackendCompatible, Single (Single), fromSqlKey)
-import           Database.Persist.Postgresql (IsolationLevel (Serializable), SqlBackend,
-                   SqlPersistT, rawExecute, rawSql, runSqlConnWithIsolation)
 
 module Main where
 
@@ -18,7 +15,7 @@ import qualified Options.Applicative as Opt
 import           Cardano.CLI.Fetching (votingPowerFromRegistrationInfo)
 import           Cardano.CLI.Query (MetadataRetrievalError)
 import qualified Cardano.CLI.Query as Query
-import           Config.Common (DatabaseConfig (..))
+import           Config.Common (DatabaseConfig (..), pgConnectionString)
 import qualified Config.Snapshot as Snapshot
 
 main :: IO ()

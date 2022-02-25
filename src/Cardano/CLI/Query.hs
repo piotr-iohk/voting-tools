@@ -21,12 +21,14 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 import           Database.Esqueleto.Legacy (BackendCompatible, Single (Single), fromSqlKey)
-import           Database.Persist.Postgresql (IsolationLevel (Serializable), SqlBackend,
+import           Database.Persist.Postgresql (PersistValue(..), IsolationLevel (Serializable), SqlBackend, PersistField(..), Entity(..),
                    SqlPersistT, rawExecute, rawSql, runSqlConnWithIsolation)
 import           System.IO (hPutStr, hPutStrLn, stderr)
 
 import           Ouroboros.Network.Block (unSlotNo)
 
+import           Data.Int (Int64)
+import           Data.Word (Word16)
 import           Cardano.Api (SlotNo)
 import qualified Cardano.Api as Api
 import qualified Cardano.Api.Shelley as Api
@@ -41,6 +43,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+
+import qualified Cardano.Db as Db
 
 data MetadataRetrievalError
   = MetadataFailedToRetrieveMetadataField !TxId
@@ -164,6 +168,9 @@ queryVoteRegistrationInfo nw mSlotNo  = do
 
   let
     xs' = zip [1..] (M.toList xs)
+  -- In the following, txIn.tx_in_id shows the transaction where this was used
+  -- as an input. Voting power must be calculated from unspent UTxOs, so they
+  -- cannot have been used as an input.
   stakeTempTableSql <- case mSlotNo of
     Nothing     -> do
       let stake_credential_index = "CREATE INDEX IF NOT EXISTS utxo_snapshot_stake_credential ON utxo_snapshot(stake_credential);"
