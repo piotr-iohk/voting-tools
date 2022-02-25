@@ -47,6 +47,14 @@ in
         initialScript = pkgs.writeText "init.sql" ''
           CREATE USER db-sync WITH SUPERUSER;
         '';
+
+        settings = {
+          log_connections = true;
+          log_statement = "all";
+          logging_collector = true;
+          log_disconnections = true;
+          log_destination = lib.mkForce "syslog";
+        };
       };
 
     };
