@@ -48,13 +48,13 @@ in
           CREATE USER db-sync WITH SUPERUSER;
         '';
 
-        settings = {
-          log_connections = true;
-          log_statement = "all";
-          logging_collector = true;
-          log_disconnections = true;
-          log_destination = lib.mkForce "syslog";
-        };
+        # settings = {
+        #   log_connections = true;
+        #   log_statement = "all";
+        #   logging_collector = true;
+        #   log_disconnections = true;
+        #   log_destination = lib.mkForce "syslog";
+        # };
       };
 
     };
